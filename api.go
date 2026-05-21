@@ -79,11 +79,12 @@ func handlerHealthz(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
-func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	var body struct {
-		Body string `json:"body"`
+		Body   string `json:"body"`
+		UserId string `json:"user_id"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -98,11 +99,36 @@ func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cleaned := cleanProfane(body.Body)
+	cleanedBody := cleanProfane(body.Body)
 
-	respondWithJSON(w, 200, struct {
-		CleanedBody string `json:"cleaned_body"`
-	}{CleanedBody: cleaned})
+	userID, err := uuid.Parse(body.UserId)
+	if err != nil {
+		respondWithError(w, 400, "Invalid user_id")
+		return
+	}
+
+	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
+		Body:   cleanedBody,
+		UserID: userID,
+	})
+	if err != nil {
+		respondWithError(w, 500, "Failed to create chirp")
+		return
+	}
+
+	respondWithJSON(w, 201, struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string    `json:"body"`
+		UserID    uuid.UUID `json:"user_id"`
+	}{
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
+	})
 }
 
 func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
