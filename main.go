@@ -15,6 +15,7 @@ func main() {
 	// Load .env
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
+	platform := os.Getenv("PLATFORM")
 
 	// Connect to DB
 	db, err := sql.Open("postgres", dbURL)
@@ -23,7 +24,8 @@ func main() {
 	}
 	dbQueries := database.New(db)
 	apiCfg := apiConfig{
-		db: dbQueries,
+		db:       dbQueries,
+		platform: platform,
 	}
 
 	// Server listener
@@ -34,7 +36,7 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metrics)
 	mux.HandleFunc("POST /admin/reset", apiCfg.reset)
 	mux.HandleFunc("POST /api/validate_chirp", handlerValidateChirp)
-	mux.HandleFunc("POST /api/users", apiCfg.CreateUser)
+	mux.HandleFunc("POST /api/users", apiCfg.createUser)
 
 	server := &http.Server{
 		Addr:    ":8080",

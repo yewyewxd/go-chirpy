@@ -33,6 +33,7 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
+	platform       string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -57,6 +58,16 @@ func (cfg *apiConfig) metrics(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) reset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	if cfg.platform != "dev" {
+		respondWithError(w, 403, "Dev only feature")
+		return
+	}
+
+	if err := cfg.db.DeleteUsers(r.Context()); err != nil {
+		log.Printf("Error deleting users: %s", err)
+		return
+	}
+
 	w.WriteHeader(200)
 	cfg.fileserverHits.Swap(0)
 	w.Write([]byte("Hits: 0"))
@@ -94,7 +105,7 @@ func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 	}{CleanedBody: cleaned})
 }
 
-func (cfg *apiConfig) CreateUser(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	var body struct {
