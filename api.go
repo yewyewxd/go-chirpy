@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yewyewxd/go-chirpy/internal/auth"
 	"github.com/yewyewxd/go-chirpy/internal/database"
 )
 
@@ -186,7 +188,8 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	var body struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -196,7 +199,16 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := cfg.db.CreateUser(r.Context(), body.Email)
+	hashedPw, err := auth.HashPassword(body.Password)
+	if err != nil {
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	user, err := cfg.db.CreateUser(r.Context(), database.CreateUserParams{
+		Email:          body.Email,
+		HashedPassword: sql.NullString{String: hashedPw, Valid: true},
+	})
 	if err != nil {
 		respondWithError(w, 400, "Failed to create user")
 		return
