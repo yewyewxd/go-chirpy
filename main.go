@@ -1,0 +1,47 @@
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	"net/http"
+	"os"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+	"github.com/yewyewxd/go-chirpy/internal/database"
+)
+
+func main() {
+	// Load .env
+	godotenv.Load()
+	dbURL := os.Getenv("DB_URL")
+
+	// Connect to DB
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		fmt.Println(err)
+	}
+	dbQueries := database.New(db)
+	apiCfg := apiConfig{
+		db: dbQueries,
+	}
+
+	// Server listener
+	mux := http.NewServeMux()
+	handler := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
+	mux.Handle("/app/", apiCfg.middlewareMetricsInc(handler))
+	mux.HandleFunc("GET /api/healthz", handlerHealthz)
+	mux.HandleFunc("GET /admin/metrics", apiCfg.metrics)
+	mux.HandleFunc("POST /admin/reset", apiCfg.reset)
+	mux.HandleFunc("POST /api/validate_chirp", handlerValidateChirp)
+	mux.HandleFunc("POST /api/users", apiCfg.CreateUser)
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
+		fmt.Println(err)
+	}
+}
