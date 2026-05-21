@@ -23,6 +23,13 @@ type Chirp struct {
 	UserID    uuid.UUID `json:"user_id"`
 }
 
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+}
+
 // Helpers
 func respondWithError(w http.ResponseWriter, code int, msg string) {
 	w.WriteHeader(code)
@@ -214,12 +221,47 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, 201, struct {
-		ID        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email     string    `json:"email"`
-	}{
+	respondWithJSON(w, 201, User{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	})
+}
+
+func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+
+	var body struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+	if err := decoder.Decode(&body); err != nil {
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	user, err := cfg.db.GetUser(r.Context(), body.Email)
+	if err != nil {
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	match, err := auth.CheckPasswordHash(body.Password, user.HashedPassword.String)
+	if err != nil {
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	if !match {
+		respondWithError(w, 401, "Incorrect email or password")
+
+	}
+
+	respondWithJSON(w, 200, User{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
