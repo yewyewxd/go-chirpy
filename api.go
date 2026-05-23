@@ -28,6 +28,7 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token,omitempty"`
 }
 
 // Helpers
@@ -52,6 +53,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	platform       string
+	secret         string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -149,8 +151,7 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	var body struct {
-		Body   string `json:"body"`
-		UserId string `json:"user_id"`
+		Body string `json:"body"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -160,21 +161,27 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate chirp
 	if len(body.Body) > 140 {
 		respondWithError(w, 400, "Chirp is too long")
 		return
 	}
 
-	cleanedBody := cleanProfane(body.Body)
-
-	userID, err := uuid.Parse(body.UserId)
+	// Validate user
+	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		respondWithError(w, 400, "Invalid user id")
+		respondWithError(w, 401, "User not logged in")
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		respondWithError(w, 401, "Failed to validate user")
 		return
 	}
 
+	// Create chirp for user
 	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
-		Body:   cleanedBody,
+		Body:   cleanProfane(body.Body),
 		UserID: userID,
 	})
 	if err != nil {
@@ -233,8 +240,9 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email            string `json:"email"`
+		Password         string `json:"password"`
+		ExpiresInSeconds int    `json:"expires_in_seconds"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -244,21 +252,33 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Override expiresIn
+	if body.ExpiresInSeconds == 0 || body.ExpiresInSeconds > 3600 {
+		body.ExpiresInSeconds = 3600
+	}
+
+	// Get user hashed pw
 	user, err := cfg.db.GetUser(r.Context(), body.Email)
 	if err != nil {
 		respondWithError(w, 500, "Something went wrong")
 		return
 	}
 
+	// Validate user pw
 	match, err := auth.CheckPasswordHash(body.Password, user.HashedPassword.String)
 	if err != nil {
 		respondWithError(w, 500, "Something went wrong")
 		return
 	}
-
 	if !match {
 		respondWithError(w, 401, "Incorrect email or password")
+	}
 
+	// Generate JWT
+	token, err := auth.MakeJWT(user.ID, cfg.secret, (time.Duration(body.ExpiresInSeconds) * time.Second))
+	if err != nil {
+		respondWithError(w, 500, "Something went wrong")
+		return
 	}
 
 	respondWithJSON(w, 200, User{
@@ -266,5 +286,6 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		Token:     token,
 	})
 }

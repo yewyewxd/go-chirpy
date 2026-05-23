@@ -16,6 +16,7 @@ func main() {
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
+	jwtSecret := os.Getenv("JWT_SECRET")
 
 	// Connect to DB
 	db, err := sql.Open("postgres", dbURL)
@@ -26,6 +27,7 @@ func main() {
 	apiCfg := apiConfig{
 		db:       dbQueries,
 		platform: platform,
+		secret:   jwtSecret,
 	}
 
 	// Server listener
