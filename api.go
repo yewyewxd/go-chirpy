@@ -30,6 +30,7 @@ type User struct {
 	Email        string    `json:"email"`
 	Token        string    `json:"token,omitempty"`
 	RefreshToken string    `json:"refresh_token,omitempty"`
+	IsChirpyRed  bool      `json:"is_chirpy_red"`
 }
 
 // Helpers
@@ -230,10 +231,11 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, 201, User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+		ID:          user.ID,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	})
 }
 
@@ -293,6 +295,7 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 		Email:        user.Email,
 		Token:        token,
 		RefreshToken: refreshToken.Token,
+		IsChirpyRed:  user.IsChirpyRed,
 	})
 }
 
@@ -389,10 +392,11 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 	})
 
 	respondWithJSON(w, 200, User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+		ID:          user.ID,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	})
 }
 
