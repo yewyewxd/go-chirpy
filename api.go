@@ -93,10 +93,11 @@ func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 
 	// Check filter query
 	AuthorId := r.URL.Query().Get("author_id")
+	Sort := r.URL.Query().Get("sort")
 	userId, err := uuid.Parse(AuthorId)
 	if err != nil || AuthorId == "" {
 		// Get all chirps
-		c, err := cfg.db.GetChirps(r.Context())
+		c, err := cfg.db.GetChirps(r.Context(), Sort == "desc")
 		if err != nil {
 			respondWithError(w, 500, "Failed to get chirps")
 			return
@@ -104,7 +105,10 @@ func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 		chirps = c
 	} else {
 		// Get chirps by user id
-		c, err := cfg.db.GetChirpsByUser(r.Context(), userId)
+		c, err := cfg.db.GetChirpsByUser(r.Context(), database.GetChirpsByUserParams{
+			UserID:   userId,
+			SortDesc: Sort == "desc",
+		})
 		if err != nil {
 			respondWithError(w, 500, "Failed to get chirps")
 			return

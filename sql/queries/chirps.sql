@@ -16,10 +16,17 @@ VALUES (
     ) RETURNING *;
 
 -- name: GetChirps :many
-SELECT * FROM chirps ORDER BY created_at ASC;
+SELECT * FROM chirps ORDER BY
+  CASE WHEN sqlc.arg(sort_desc)::bool THEN created_at END DESC,
+  CASE WHEN NOT sqlc.arg(sort_desc)::bool THEN created_at END ASC;
 
 -- name: GetChirpsByUser :many
-SELECT * FROM chirps WHERE user_id = $1 ORDER BY created_at ASC;
+SELECT *
+FROM chirps
+WHERE user_id = $1
+ORDER BY
+  CASE WHEN sqlc.arg(sort_desc)::bool THEN created_at END DESC,
+  CASE WHEN NOT sqlc.arg(sort_desc)::bool THEN created_at END ASC;
 
 -- name: GetChirpById :one
 SELECT * FROM chirps WHERE id = $1;
