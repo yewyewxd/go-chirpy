@@ -33,23 +33,6 @@ type User struct {
 	IsChirpyRed  bool      `json:"is_chirpy_red"`
 }
 
-// Helpers
-func respondWithError(w http.ResponseWriter, code int, msg string) {
-	w.WriteHeader(code)
-	resBody := struct {
-		Error string `json:"error"`
-	}{Error: msg}
-	bytes, err := json.Marshal(resBody)
-	log.Printf("Error decoding parameters: %s", err)
-	w.Write(bytes)
-}
-
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	w.WriteHeader(code)
-	bytes, _ := json.Marshal(payload)
-	w.Write(bytes)
-}
-
 // Routes
 type apiConfig struct {
 	fileserverHits atomic.Int32
