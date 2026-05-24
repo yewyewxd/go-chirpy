@@ -8,3 +8,6 @@ INSERT INTO
         user_id
     )
 VALUES ($1, NOW(), NOW(), $2, $3) RETURNING *;
+
+-- name: GetRefreshToken :one
+SELECT * from refresh_tokens WHERE token = $1;

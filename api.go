@@ -295,3 +295,36 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: refreshToken.Token,
 	})
 }
+
+func (cfg *apiConfig) refresh(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+
+	// Validate token
+	rt, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "Token is required")
+		return
+	}
+
+	refreshToken, err := cfg.db.GetRefreshToken(r.Context(), rt)
+	if err != nil {
+		respondWithError(w, 401, "Failed to retrieve token")
+		return
+	}
+
+	if time.Now().Compare(refreshToken.ExpiresAt) > -1 || refreshToken.RevokedAt.Valid {
+		respondWithError(w, 401, "Invalid refresh token")
+		return
+	}
+
+	// Create new token for user
+	token, err := auth.MakeJWT(refreshToken.UserID, cfg.secret, time.Hour)
+	if err != nil {
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	respondWithJSON(w, 200, struct {
+		Token string `json:"token"`
+	}{Token: token})
+}
