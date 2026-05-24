@@ -346,3 +346,53 @@ func (cfg *apiConfig) revoke(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, 204, nil)
 }
+
+func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Add("Content-Type", "application/json")
+
+	var body struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+	if err := decoder.Decode(&body); err != nil {
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	// Validate user
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "User not logged in")
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		respondWithError(w, 401, "Failed to validate user")
+		return
+	}
+
+	// Hash password
+	hashedPw, err := auth.HashPassword(body.Password)
+	if err != nil {
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	// Update user
+	user, err := cfg.db.UpdateUserById(r.Context(), database.UpdateUserByIdParams{
+		ID:             userID,
+		Email:          body.Email,
+		HashedPassword: sql.NullString{String: hashedPw, Valid: true},
+	})
+
+	respondWithJSON(w, 200, User{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	})
+}
