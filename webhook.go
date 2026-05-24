@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/yewyewxd/go-chirpy/internal/auth"
 )
 
 func (cfg *apiConfig) polkaWebhooks(w http.ResponseWriter, r *http.Request) {
@@ -20,6 +21,13 @@ func (cfg *apiConfig) polkaWebhooks(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	if err := decoder.Decode(&body); err != nil {
 		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	// Validate API key
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil || cfg.polkaKey != apiKey {
+		respondWithError(w, 401, "Invalid API key")
 		return
 	}
 

@@ -17,6 +17,7 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
 	jwtSecret := os.Getenv("JWT_SECRET")
+	polkaKey := os.Getenv("POLKA_KEY")
 
 	// Connect to DB
 	db, err := sql.Open("postgres", dbURL)
@@ -28,6 +29,7 @@ func main() {
 		db:       dbQueries,
 		platform: platform,
 		secret:   jwtSecret,
+		polkaKey: polkaKey,
 	}
 
 	// Server listener
