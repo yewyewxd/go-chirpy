@@ -348,7 +348,6 @@ func (cfg *apiConfig) revoke(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
-
 	w.Header().Add("Content-Type", "application/json")
 
 	var body struct {
@@ -395,4 +394,51 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
 	})
+}
+
+func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+
+	// Get chirp id
+	chirpId, err := uuid.Parse(r.PathValue("chirpID"))
+	if err != nil {
+		respondWithError(w, 400, "Invalid chirp id")
+		return
+	}
+
+	// Validate user
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "User not logged in")
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		respondWithError(w, 401, "Failed to validate user")
+		return
+	}
+
+	// Get chirp
+	chirp, err := cfg.db.GetChirpById(r.Context(), chirpId)
+	if err != nil {
+		respondWithError(w, 404, "Chirp does not exist")
+		return
+	}
+
+	// Check if chirp belongs to user
+	if chirp.UserID != userID {
+		respondWithError(w, 403, "Cannot delete chirp")
+		return
+	}
+
+	// Delete chirp for user
+	if err := cfg.db.DeleteChirpForUser(r.Context(), database.DeleteChirpForUserParams{
+		ID:     chirpId,
+		UserID: userID,
+	}); err != nil {
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	respondWithJSON(w, 204, nil)
 }
