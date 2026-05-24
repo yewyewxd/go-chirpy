@@ -88,14 +88,31 @@ func handlerHealthz(w http.ResponseWriter, r *http.Request) {
 func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
-	chirps, err := cfg.db.GetChirps(r.Context())
-	if err != nil {
-		respondWithError(w, 500, "Failed to get chirps")
-		return
+	data := []Chirp{}
+	var chirps []database.Chirp
+
+	// Check filter query
+	AuthorId := r.URL.Query().Get("author_id")
+	userId, err := uuid.Parse(AuthorId)
+	if err != nil || AuthorId == "" {
+		// Get all chirps
+		c, err := cfg.db.GetChirps(r.Context())
+		if err != nil {
+			respondWithError(w, 500, "Failed to get chirps")
+			return
+		}
+		chirps = c
+	} else {
+		// Get chirps by user id
+		c, err := cfg.db.GetChirpsByUser(r.Context(), userId)
+		if err != nil {
+			respondWithError(w, 500, "Failed to get chirps")
+			return
+		}
+		chirps = c
 	}
 
-	data := make([]Chirp, 0, len(chirps))
-
+	// Make chirp list
 	for _, chirp := range chirps {
 		data = append(data, Chirp{
 			ID:        chirp.ID,
