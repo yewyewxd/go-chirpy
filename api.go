@@ -328,3 +328,21 @@ func (cfg *apiConfig) refresh(w http.ResponseWriter, r *http.Request) {
 		Token string `json:"token"`
 	}{Token: token})
 }
+
+func (cfg *apiConfig) revoke(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+
+	// Validate token
+	rt, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "Token is required")
+		return
+	}
+
+	// Revoke token
+	if err := cfg.db.RevokeRefreshToken(r.Context(), rt); err != nil {
+		respondWithError(w, 401, "Invalid refresh token")
+	}
+
+	respondWithJSON(w, 204, nil)
+}
