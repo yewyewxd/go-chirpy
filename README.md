@@ -1,4 +1,4 @@
-# go-chirpy
+# go-chirpy!
 
 A small HTTP API server (and tiny static app) that runs on `http://localhost:8080`.
 
